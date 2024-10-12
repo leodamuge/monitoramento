@@ -1,14 +1,17 @@
+//IMPLEMENTAÇÃO DAS FUNÇÕES 
 #include "conn.h"
 #include <WiFi.h>
 #include <HardwareSerial.h>
-#include <HTTPClient.h>  // Biblioteca para HTTP requests. Similar para ESP32.
+#include <HTTPClient.h>  // Biblioteca para HTTP requests
 
-HardwareSerial sim800(1);  // Use UART1 do ESP32
+#define RX_PIN 16
+#define TX_PIN 17
+
+HardwareSerial sim800(1);
 
 
-
-
-void iniciarWiFi(const char* ssid, const char* password) {
+//CONEXÃO AO PONTO DE ACESSO À INTERNET
+void iniciarWiFi(const char* ssid, const char* password) { 
   WiFi.begin(ssid, password);
   Serial.print("Conectando-se ao Wi-Fi");
   
@@ -21,6 +24,7 @@ void iniciarWiFi(const char* ssid, const char* password) {
   Serial.println("Conectado ao Wi-Fi");
 }
 
+//ENVIO DOS DADOS PARA A NUVEM
 void enviarDadosThingSpeak(int sensor1, int sensor2, int sensor3, int sensor4, const char* apiKey, const char* server) {
   if (WiFi.status() == WL_CONNECTED) {  // Verifica se o Wi-Fi está conectado
     HTTPClient http;
@@ -47,8 +51,10 @@ void enviarDadosThingSpeak(int sensor1, int sensor2, int sensor3, int sensor4, c
     Serial.println("Falha na conexão Wi-Fi");
   }
 }
+
+//CARTAO SIM PARA O ENVIO DE SMS
 void setupSIM800L() {
-  sim800.begin(9600, SERIAL_8N1, 7, 8);  // Inicializa a comunicação UART com o SIM800L (TX:7, RX:8)
+  sim800.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);  // Inicializa a comunicação UART com o SIM800L (RX:16, TX:17)
   delay(1000);
 
   // Verifica se o módulo está funcionando enviando o comando AT
@@ -59,21 +65,34 @@ void setupSIM800L() {
     String response = sim800.readString();
     Serial.println("Resposta do SIM800L: " + response);
   }
+  else{
+    Serial.println("COMUNICAÇÃO NÃO ESTABELECIDA");
+  }
 }
+
+//Envio de SMS
+
 void sendSMS(const char* message) {
+  
   // Envia os comandos AT para configurar e enviar o SMS
   sim800.println("AT+CMGF=1");  // Configura o modo texto para SMS
   delay(1000);
-  sim800.println("AT+CMGS=\"+258840126705\"");
-  
-  //sim800.println("AT+CMGS=\"" + recipientNumber + "\"");  // Comando para enviar SMS para o número
+  String numer="+258840126705"; //Numero alvo- para o qual a mensagem é enviada
+  sim800.println("AT+CMGS=\"" + numer + "\""); 
   delay(1000);
-
   sim800.print(message);  // Envia a mensagem
   delay(1000);
 
-  sim800.write(26);  // Código ASCII para CTRL+Z, finaliza o SMS
+  sim800.write(26);  //finaliza o SMS
   delay(1000);
 
-  Serial.println("SMS Enviado!"); Serial.println(message);
+  Serial.println("SMS Enviada!"); Serial.println(message);
+   if (sim800.available()) {
+    String response = sim800.readString();
+    Serial.println("Resposta do SIM800L: " + response);
+  }
+  else{
+    Serial.println("COMUNICACAO NAO ESTABELECIDA:");
+  }
+  
 }
